@@ -1,6 +1,6 @@
-# SecureVault Browser Extension Setup
+# Mobile Vault Browser Extension Setup
 
-This guide explains how to set up and run SecureVault as a Chrome browser extension.
+This guide explains how to set up and run Mobile Vault as a Chrome browser extension.
 
 ## Files Overview
 
@@ -55,7 +55,7 @@ In the copied `popup.html`, update the script and link paths to point to the cor
 
 ### 5. Test the Extension
 
-1. Click the SecureVault icon in your Chrome toolbar
+1. Click the Mobile Vault icon in your Chrome toolbar
 2. The extension popup should open with your vault interface
 
 ## Features
