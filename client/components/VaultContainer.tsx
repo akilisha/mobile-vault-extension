@@ -1,4 +1,9 @@
-import { useState, useEffect } from "react";
+/**
+ * Container: wires useC1Relay to VaultView. No UI changes; only state and handler mapping.
+ * A1 Row (group, website, description, attributes[]) ↔ VaultEntry (group, url, description, attributes name/value/isSecret).
+ */
+
+import { useEffect, useMemo, useState } from "react";
 import {
   VaultView,
   Stage,
@@ -6,6 +11,8 @@ import {
   VaultEntry,
   PasswordGenConfig,
 } from "@/components/VaultView";
+import { useC1Relay } from "@/hooks/useC1Relay";
+import type { A1Row } from "@/lib/vault-types";
 
 interface VaultContainerProps {
   popupSize?: boolean;
@@ -13,92 +20,111 @@ interface VaultContainerProps {
   onStorageChange?: (entries: VaultEntry[], stage: Stage) => void;
 }
 
+function a1RowToVaultEntry(r: A1Row, index: number): VaultEntry {
+  return {
+    id: r.id ?? `row-${r.group}-${r.website}-${index}`,
+    group: r.group,
+    url: r.website,
+    description: r.description ?? "",
+    attributes: (r.attributes ?? []).map((a) => ({
+      name: a.key,
+      value: typeof a.value === "string" ? a.value : String(a.value ?? ""),
+      isSecret: a.isSecret ?? false,
+    })),
+  };
+}
+
+function relayFormToViewForm(
+  form: ReturnType<typeof useC1Relay>["form"]
+): {
+  group: string;
+  url: string;
+  description: string;
+  attributes: VaultAttribute[];
+} {
+  return {
+    group: form.groupId,
+    url: form.websiteUrl,
+    description: form.description,
+    attributes: form.attributes.map((a) => ({
+      name: a.key,
+      value: a.value,
+      isSecret: a.isSecret ?? false,
+    })),
+  };
+}
+
 export function VaultContainer({
   popupSize = true,
   containerClassName = "",
   onStorageChange,
 }: VaultContainerProps) {
-  const [stage, setStage] = useState<Stage>("disconnected");
-  const [vaultEntries, setVaultEntries] = useState<VaultEntry[]>([
-    {
-      id: "1",
-      group: "Email",
-      url: "https://gmail.com",
-      description: "Primary email account",
-      attributes: [
-        { name: "email", value: "user@gmail.com", isSecret: false },
-        { name: "password", value: "SecurePass123!", isSecret: true },
-      ],
-    },
-    {
-      id: "2",
-      group: "Banking",
-      url: "https://bank.example.com",
-      description: "Main bank account",
-      attributes: [
-        { name: "account_number", value: "****1234", isSecret: true },
-        { name: "pin", value: "1234", isSecret: true },
-        { name: "username", value: "john_doe", isSecret: false },
-      ],
-    },
-    {
-      id: "3",
-      group: "GitHub",
-      url: "https://github.com",
-      description: "Developer account",
-      attributes: [
-        { name: "username", value: "johndoe", isSecret: false },
-        { name: "personal_access_token", value: "ghp_xyz123abc", isSecret: true },
-      ],
-    },
-    {
-      id: "4",
-      group: "AWS",
-      url: "https://aws.amazon.com",
-      description: "Cloud infrastructure",
-      attributes: [
-        { name: "access_key_id", value: "AKIAIOSFODNN7EXAMPLE", isSecret: true },
-        {
-          name: "secret_access_key",
-          value: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-          isSecret: true,
-        },
-        { name: "region", value: "us-east-1", isSecret: false },
-      ],
-    },
-    {
-      id: "5",
-      group: "Slack",
-      url: "https://slack.com",
-      description: "Team workspace",
-      attributes: [
-        { name: "workspace_url", value: "mycompany.slack.com", isSecret: false },
-        {
-          name: "api_token",
-          value: "xoxb-1234567890-1234567890",
-          isSecret: true,
-        },
-      ],
-    },
-  ]);
+  const c1 = useC1Relay();
 
-  const [editingEntry, setEditingEntry] = useState<string | null>(null);
-  const [showPasswordGen, setShowPasswordGen] = useState(false);
-  const [activeSecretField, setActiveSecretField] = useState<{
-    entryId?: string;
-    attrIndex?: number;
-  } | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const stage: Stage = c1.paired
+    ? "connected"
+    : c1.qrPayload
+      ? "connecting"
+      : "disconnected";
 
-  // Form state
-  const [formData, setFormData] = useState({
-    group: "",
-    url: "",
-    description: "",
-    attributes: [{ name: "", value: "", isSecret: false }] as VaultAttribute[],
-  });
+  const vaultEntries: VaultEntry[] = useMemo(
+    () => c1.filteredRows.map((r, i) => a1RowToVaultEntry(r, i)),
+    [c1.filteredRows]
+  );
 
-  // Password generator state
+  const formData = useMemo(
+    () => relayFormToViewForm(c1.form),
+    [c1.form]
+  );
+
+  const qrData =
+    c1.qrPayload?.url ??
+    (c1.qrDataUrl ? c1.qrDataUrl.substring(0, 80) + "…" : "");
+  const qrImageDataUrl = c1.qrDataUrl ?? undefined;
+
+  const handleFormChange = (field: string, value: string) => {
+    if (field === "group") c1.setForm((prev) => ({ ...prev, groupId: value }));
+    else if (field === "url")
+      c1.setForm((prev) => ({ ...prev, websiteUrl: value }));
+    else if (field === "description")
+      c1.setForm((prev) => ({ ...prev, description: value }));
+  };
+
+  const handleUpdateAttribute = (
+    index: number,
+    field: keyof VaultAttribute,
+    value: string | boolean
+  ) => {
+    const key = field === "name" ? "key" : field;
+    c1.setFormAttribute(index, key as "key" | "value" | "isSecret", value);
+  };
+
+  const handleSubmitEntry = () => {
+    c1.saveRow();
+  };
+
+  const handleEditEntry = (entryId: string) => {
+    const entry = vaultEntries.find((e) => e.id === entryId);
+    if (!entry) return;
+    c1.setForm({
+      groupId: entry.group,
+      websiteUrl: entry.url,
+      description: entry.description,
+      attributes:
+        entry.attributes.length > 0
+          ? entry.attributes.map((a) => ({
+              key: a.name,
+              value: a.value,
+              isSecret: a.isSecret,
+            }))
+          : [{ key: "", value: "" }],
+    });
+  };
+
+  const handleCopyToClipboard = (text: string) => {
+    c1.copyValue(text);
+  };
+
   const [passwordConfig, setPasswordConfig] = useState<PasswordGenConfig>({
     minLength: 8,
     maxLength: 24,
@@ -108,183 +134,75 @@ export function VaultContainer({
     matchPattern: "",
   });
   const [generatedPassword, setGeneratedPassword] = useState("");
+  const [showPasswordGen, setShowPasswordGen] = useState(false);
+  const [activeSecretField, setActiveSecretField] = useState<{
+    entryId?: string;
+    attrIndex?: number;
+  } | null>(null);
 
-  // QR Code data
-  const qrData = `${Math.random().toString(36).substring(2, 15)},https://vault-server.example.com`;
-
-  // Load vault data from Chrome storage on mount
-  useEffect(() => {
-    if (typeof chrome !== "undefined" && chrome.storage) {
-      chrome.storage.local.get(
-        ["vaultEntries", "connectionStatus"],
-        (result) => {
-          if (result.vaultEntries && result.vaultEntries.length > 0) {
-            setVaultEntries(result.vaultEntries);
-          }
-          if (result.connectionStatus) {
-            setStage(result.connectionStatus as Stage);
-          }
-        }
-      );
-    }
-  }, []);
-
-  // Save vault entries to Chrome storage whenever they change
-  useEffect(() => {
-    if (
-      typeof chrome !== "undefined" &&
-      chrome.storage &&
-      vaultEntries.length > 0
-    ) {
-      chrome.storage.local.set({ vaultEntries });
-    }
-    onStorageChange?.(vaultEntries, stage);
-  }, [vaultEntries, onStorageChange, stage]);
-
-  // Save connection status to Chrome storage whenever it changes
-  useEffect(() => {
-    if (typeof chrome !== "undefined" && chrome.storage) {
-      chrome.storage.local.set({ connectionStatus: stage });
-    }
-  }, [stage]);
-
-  const handleConnect = () => {
-    setStage("connecting");
-    setTimeout(() => {
-      setStage("connected");
-    }, 2000);
-  };
-
-  const handleAddAttribute = () => {
-    setFormData((prev) => ({
-      ...prev,
-      attributes: [...prev.attributes, { name: "", value: "", isSecret: false }],
-    }));
-  };
-
-  const handleUpdateAttribute = (
-    index: number,
-    field: keyof VaultAttribute,
-    value: string | boolean
-  ) => {
-    setFormData((prev) => ({
-      ...prev,
-      attributes: prev.attributes.map((attr, i) =>
-        i === index ? { ...attr, [field]: value } : attr
-      ),
-    }));
-  };
-
-  const handleRemoveAttribute = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      attributes: prev.attributes.filter((_, i) => i !== index),
-    }));
+  const handlePasswordConfigChange = (field: string, value: unknown) => {
+    setPasswordConfig((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleGeneratePassword = () => {
     const chars =
       "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     const specialChars = "!@#$%^&*()_+-=[]{}|;:,.<>?";
-
     const availableSpecial = specialChars
       .split("")
-      .filter((char) => !passwordConfig.excludeChars.includes(char));
-
+      .filter((c) => !passwordConfig.excludeChars.includes(c));
     const length =
       Math.floor(
         Math.random() * (passwordConfig.maxLength - passwordConfig.minLength + 1)
       ) + passwordConfig.minLength;
     let password = "";
-
-    // Add required special characters
-    for (
-      let i = 0;
-      i < passwordConfig.minSpecialChars && i < availableSpecial.length;
-      i++
-    ) {
-      password +=
-        availableSpecial[Math.floor(Math.random() * availableSpecial.length)];
+    for (let i = 0; i < passwordConfig.minSpecialChars && availableSpecial.length; i++) {
+      password += availableSpecial[Math.floor(Math.random() * availableSpecial.length)];
     }
-
-    // Fill the rest with regular characters
     for (let i = password.length; i < length; i++) {
       password += chars[Math.floor(Math.random() * chars.length)];
     }
-
-    // Shuffle the password
-    password = password.split("").sort(() => Math.random() - 0.5).join("");
-    setGeneratedPassword(password);
+    setGeneratedPassword(
+      password
+        .split("")
+        .sort(() => Math.random() - 0.5)
+        .join("")
+    );
   };
 
   const handleUseGeneratedPassword = () => {
-    if (activeSecretField && generatedPassword) {
-      if (activeSecretField.attrIndex !== undefined) {
-        handleUpdateAttribute(activeSecretField.attrIndex, "value", generatedPassword);
-      }
-      setShowPasswordGen(false);
-      setActiveSecretField(null);
-      setGeneratedPassword("");
+    if (activeSecretField?.attrIndex !== undefined && generatedPassword) {
+      handleUpdateAttribute(activeSecretField.attrIndex, "value", generatedPassword);
     }
+    setShowPasswordGen(false);
+    setActiveSecretField(null);
+    setGeneratedPassword("");
   };
 
-  const handleSubmitEntry = () => {
-    const newEntry: VaultEntry = {
-      id: Math.random().toString(36).substring(2, 15),
-      ...formData,
-    };
-
-    setVaultEntries((prev) => [...prev, newEntry]);
-    setFormData({
-      group: "",
-      url: "",
-      description: "",
-      attributes: [{ name: "", value: "", isSecret: false }],
-    });
-  };
-
-  const handleCopyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-  };
-
-  const handleFormChange = (field: string, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const handlePasswordConfigChange = (field: string, value: any) => {
-    setPasswordConfig((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const handlePasswordGenOpen = (attrIndex: number) => {
-    setActiveSecretField({ attrIndex });
-    setShowPasswordGen(true);
-  };
+  useEffect(() => {
+    onStorageChange?.(vaultEntries, stage);
+  }, [vaultEntries, stage, onStorageChange]);
 
   return (
     <VaultView
       stage={stage}
       vaultEntries={vaultEntries}
-      searchQuery={searchQuery}
+      searchQuery={c1.searchQuery}
       formData={formData}
       passwordConfig={passwordConfig}
       generatedPassword={generatedPassword}
       showPasswordGen={showPasswordGen}
       activeSecretField={activeSecretField}
       qrData={qrData}
-      onConnect={handleConnect}
-      onSearchChange={setSearchQuery}
+      qrImageDataUrl={qrImageDataUrl}
+      onConnect={c1.connect}
+      onSearchChange={c1.setSearchQuery}
       onFormChange={handleFormChange}
-      onAddAttribute={handleAddAttribute}
+      onAddAttribute={c1.addFormAttribute}
       onUpdateAttribute={handleUpdateAttribute}
-      onRemoveAttribute={handleRemoveAttribute}
+      onRemoveAttribute={c1.removeFormAttribute}
       onSubmitEntry={handleSubmitEntry}
-      onEditEntry={setEditingEntry}
+      onEditEntry={handleEditEntry}
       onPasswordConfigChange={handlePasswordConfigChange}
       onGeneratePassword={handleGeneratePassword}
       onUseGeneratedPassword={handleUseGeneratedPassword}
@@ -293,9 +211,13 @@ export function VaultContainer({
         setActiveSecretField(null);
       }}
       onCopyToClipboard={handleCopyToClipboard}
-      onPasswordGenOpen={handlePasswordGenOpen}
+      onPasswordGenOpen={(attrIndex) => {
+        setActiveSecretField({ attrIndex });
+        setShowPasswordGen(true);
+      }}
       popupSize={popupSize}
       containerClassName={containerClassName}
     />
   );
 }
+

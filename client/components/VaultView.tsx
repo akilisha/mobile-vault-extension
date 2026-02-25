@@ -47,6 +47,8 @@ export interface VaultViewProps {
   showPasswordGen: boolean;
   activeSecretField: { entryId?: string; attrIndex?: number } | null;
   qrData: string;
+  /** When set, show this as the scannable QR image (data URL) instead of placeholder. */
+  qrImageDataUrl?: string;
 
   // Handlers
   onConnect: () => void;
@@ -93,6 +95,7 @@ export function VaultView({
   onClosePasswordGen,
   onCopyToClipboard,
   onPasswordGenOpen,
+  qrImageDataUrl,
   containerClassName = "",
   popupSize = true,
 }: VaultViewProps) {
@@ -432,15 +435,23 @@ export function VaultView({
                 <h2 className="text-lg font-semibold">Connecting...</h2>
               </div>
 
-              <div className="w-48 h-48 bg-white border-2 border-gray-300 rounded-lg flex items-center justify-center">
-                <div className="grid grid-cols-8 gap-1 w-40 h-40">
-                  {Array.from({ length: 64 }, (_, i) => (
-                    <div
-                      key={i}
-                      className={`w-2 h-2 ${Math.random() > 0.5 ? 'bg-black' : 'bg-white'}`}
-                    />
-                  ))}
-                </div>
+              <div className="w-48 h-48 bg-white border-2 border-gray-300 rounded-lg flex items-center justify-center overflow-hidden">
+                {qrImageDataUrl ? (
+                  <img
+                    src={qrImageDataUrl}
+                    alt="Scan with your device to connect"
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <div className="grid grid-cols-8 gap-1 w-40 h-40">
+                    {Array.from({ length: 64 }, (_, i) => (
+                      <div
+                        key={i}
+                        className={`w-2 h-2 ${Math.random() > 0.5 ? 'bg-black' : 'bg-white'}`}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
 
               <p className="text-sm text-muted-foreground text-center max-w-xs">
