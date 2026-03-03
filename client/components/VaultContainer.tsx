@@ -1,5 +1,5 @@
 /**
- * Container: wires useC1Relay to VaultView. No UI changes; only state and handler mapping.
+ * Container: wires relay context (useRelay) to VaultView. No UI changes; only state and handler mapping.
  * A1 Row (group, website, description, attributes[]) ↔ VaultEntry (group, url, description, attributes name/value/isSecret).
  */
 

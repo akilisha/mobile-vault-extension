@@ -167,3 +167,34 @@ Closing the **captured tab** or restarting the browser also ends capture (state 
 - **Retreat to background:** Session stays active but user has left the tab; extension shows the “active” badge and does not end the session.
 - **Capture:** The streamlined, heuristic-driven flow for login/sign-in (Capture tab).
 - **Vault:** The full manual vault UI (Vault tab), same as current extension capabilities.
+
+---
+
+## Roadmap & milestones
+
+### Done
+
+| Milestone | Description |
+|-----------|-------------|
+| **Relay in background** | WebSocket and relay logic run in the service worker; connection survives popup close and tab switch. |
+| **Popup state over messages** | Popup is state-driven: reducer receives actions via `chrome.runtime.onMessage`, sends commands via `sendMessage`. No shared memory with background. |
+| **Explicit Disconnect** | User can disconnect the relay from the popup; WebSocket is closed in background. |
+| **Badge for relay** | Extension icon shows relay connection state (e.g. ● when connected) even when popup is closed. |
+| **Popup state machine** | States: DISCONNECTED, CONNECTING, CONNECTED_CAPTURE_OFF, CONNECTED_CAPTURE_ON. Capture activate/deactivate; Vault tab disabled while Capture active. |
+| **Capture tab shell** | Capture tab with Activate/Deactivate; badge "ON" when capture active (in-memory in background). |
+
+### Next
+
+| Milestone | Description |
+|-----------|-------------|
+| **Capture heuristics** | Watch active tab for credential-like fields; scope to that tab; build payload (group, website, description, attributes) from heuristics + current URL. |
+| **60s idle deactivate** | No relevant activity for 60 seconds → automatic deactivate and clear badge. |
+| **Save-on-redirect prompt** | After navigation (e.g. post-login redirect), show “Save these credentials?”; Save action also deactivates the session. |
+| **Retreat-to-background** | When user switches tab, capture session stays active; badge remains so user knows extension is still on; return to tab to continue. |
+
+### Later
+
+| Milestone | Description |
+|-----------|-------------|
+| **Content script for capture** | Inject into captured tab to read/detect fields and support save prompt (when in scope). |
+| **Badge/icon polish** | Finalize “active” badge design (e.g. color, icon) per spec. |
