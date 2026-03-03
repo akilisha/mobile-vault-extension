@@ -106,6 +106,8 @@ export function VaultContainer({
   const handleEditEntry = (entryId: string) => {
     const entry = vaultEntries.find((e) => e.id === entryId);
     if (!entry) return;
+    // Only set editingId when this is a real A1 row id (numeric); otherwise save will create a new row.
+    c1.setEditingId(/^\d+$/.test(entry.id) ? entry.id : null);
     c1.setForm({
       groupId: entry.group,
       websiteUrl: entry.url,
@@ -183,6 +185,20 @@ export function VaultContainer({
     onStorageChange?.(vaultEntries, stage);
   }, [vaultEntries, stage, onStorageChange]);
 
+  // Clear clipboard when popup is closed or hidden (security: don't leave secrets in clipboard)
+  useEffect(() => {
+    const clear = () => c1.clearClipboardOnClose?.();
+    window.addEventListener("pagehide", clear);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") clear();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("pagehide", clear);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [c1.clearClipboardOnClose]);
+
   return (
     <VaultView
       stage={stage}
@@ -215,6 +231,7 @@ export function VaultContainer({
         setActiveSecretField({ attrIndex });
         setShowPasswordGen(true);
       }}
+      onRefresh={c1.refreshVault}
       popupSize={popupSize}
       containerClassName={containerClassName}
     />

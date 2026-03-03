@@ -10,6 +10,8 @@ export interface SaveRowPayload {
   websiteUrl: string;
   description: string;
   attributes: { key: string; value: string; isSecret?: boolean }[];
+  /** When set, A1 will update this row instead of creating a new one. */
+  id?: string;
 }
 
 interface VaultRequest {
@@ -97,12 +99,14 @@ export class ClientVault {
   }
 
   save(value: SaveRowPayload): Promise<boolean> {
-    return this.request("save", {
+    const payload: Record<string, unknown> = {
       groupId: value.groupId,
       websiteUrl: value.websiteUrl,
       description: value.description,
       attributes: value.attributes,
-    });
+    };
+    if (value.id != null && value.id !== "") payload.id = value.id;
+    return this.request("save", payload);
   }
 
   readAll(): Promise<A1Row[]> {

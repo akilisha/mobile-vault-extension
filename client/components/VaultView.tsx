@@ -1,4 +1,4 @@
-import { Copy, Edit, Plus, RotateCcw, X } from "lucide-react";
+import { Copy, Edit, Plus, RefreshCw, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -65,6 +65,8 @@ export interface VaultViewProps {
   onClosePasswordGen: () => void;
   onCopyToClipboard: (text: string) => void;
   onPasswordGenOpen: (attrIndex: number) => void;
+  /** Manual sync: reload vault from device (e.g. after changes on the app). */
+  onRefresh?: () => void;
 
   // Styling props
   containerClassName?: string;
@@ -95,6 +97,7 @@ export function VaultView({
   onClosePasswordGen,
   onCopyToClipboard,
   onPasswordGenOpen,
+  onRefresh,
   qrImageDataUrl,
   containerClassName = "",
   popupSize = true,
@@ -471,6 +474,17 @@ export function VaultView({
                 <h2 className="text-lg font-semibold">Mobile Vault</h2>
               </div>
               <div className="flex items-center space-x-2">
+                {onRefresh && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onRefresh}
+                    className="h-8 px-2"
+                    title="Sync from device"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </Button>
+                )}
                 <div className="w-2 h-2 bg-security-green rounded-full"></div>
                 <span className="text-xs text-muted-foreground">Connected</span>
               </div>

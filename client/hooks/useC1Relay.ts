@@ -56,6 +56,9 @@ export interface C1RelayState {
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   filteredRows: A1Row[];
+  /** Set when editing an existing row so save sends update instead of create. */
+  editingId: string | null;
+  setEditingId: (id: string | null) => void;
 }
 
 export interface C1RelayActions {
@@ -65,6 +68,8 @@ export interface C1RelayActions {
   saveRow: () => void;
   removeRow: (groupId: string, key: string) => void;
   copyValue: (value: unknown) => void;
+  /** Call when popup is closing or hidden; clears clipboard if we had copied a secret (security). */
+  clearClipboardOnClose: () => void;
   setForm: React.Dispatch<React.SetStateAction<C1RelayState["form"]>>;
   setFormAttribute: (
     index: number,
@@ -141,6 +146,7 @@ export function useC1Relay(): C1RelayState & C1RelayActions {
   const [connectDisabled, setConnectDisabled] = useState(false);
   const [loadingRemove, setLoadingRemove] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const clientVaultRef = useRef<ClientVault | null>(null);
@@ -150,6 +156,7 @@ export function useC1Relay(): C1RelayState & C1RelayActions {
   const encryptionKeyRef = useRef<CryptoKey | null>(null);
   const disconnectReasonRef = useRef<string | null>(null);
   const connectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hadCopiedSecretRef = useRef(false);
 
   const setStatus = useCallback((text: string, kind: StatusKind = "normal") => {
     setStatusState({ text, kind });
@@ -219,8 +226,10 @@ export function useC1Relay(): C1RelayState & C1RelayActions {
         websiteUrl: form.websiteUrl.trim(),
         description: form.description.trim(),
         attributes,
+        ...(editingId != null && editingId !== "" ? { id: editingId } : {}),
       });
       setStatus("Paired", "paired");
+      setEditingId(null);
       setForm((f) => ({ ...f, attributes: [{ key: "", value: "" }], description: "" }));
       await refreshVault();
     } catch (e) {
@@ -231,7 +240,7 @@ export function useC1Relay(): C1RelayState & C1RelayActions {
     } finally {
       setLoading("idle");
     }
-  }, [form, setStatus, refreshVault]);
+  }, [form, editingId, setStatus, refreshVault]);
 
   const removeRow = useCallback(
     async (groupId: string, key: string) => {
@@ -257,10 +266,19 @@ export function useC1Relay(): C1RelayState & C1RelayActions {
   const copyValue = useCallback((value: unknown) => {
     const str = typeof value === "string" ? value : JSON.stringify(value);
     navigator.clipboard.writeText(str).then(
-      () => setStatus("Copied to clipboard", "paired"),
+      () => {
+        hadCopiedSecretRef.current = true;
+        setStatus("Copied to clipboard", "paired");
+      },
       () => setStatus("Copy failed", "error")
     );
   }, [setStatus]);
+
+  const clearClipboardOnClose = useCallback(() => {
+    if (!hadCopiedSecretRef.current) return;
+    hadCopiedSecretRef.current = false;
+    navigator.clipboard.writeText("").catch(() => {});
+  }, []);
 
   const setFormAttribute = useCallback(
     (
@@ -499,6 +517,8 @@ export function useC1Relay(): C1RelayState & C1RelayActions {
     searchQuery,
     setSearchQuery,
     filteredRows,
+    editingId,
+    setEditingId,
     setRelayUrl,
     connect,
     refreshVault,
@@ -509,5 +529,6 @@ export function useC1Relay(): C1RelayState & C1RelayActions {
     setFormAttribute,
     addFormAttribute,
     removeFormAttribute,
+    clearClipboardOnClose,
   };
 }
