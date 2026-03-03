@@ -36,12 +36,12 @@ try {
   );
   console.log('  ✓ manifest.json');
 
-  // Copy background.js
-  fs.copySync(
-    path.join(SRC_DIR, 'background.js'),
-    path.join(DIST_DIR, 'background.js')
-  );
-  console.log('  ✓ background.js');
+  // background.js is produced by Vite (client/background-worker.ts entry)
+  if (fs.existsSync(path.join(DIST_DIR, 'background.js'))) {
+    console.log('  ✓ background.js (from build)');
+  } else {
+    console.warn('  ⚠ background.js not found in dist — check Vite build input');
+  }
 
   // Copy icons
   if (fs.existsSync(path.join(SRC_DIR, 'public', 'icons'))) {

@@ -8,7 +8,14 @@ export default defineConfig({
     outDir: "dist/extension",
     emptyOutDir: true,
     rollupOptions: {
-      input: path.resolve(__dirname, "extension.html"),
+      input: {
+        extension: path.resolve(__dirname, "extension.html"),
+        background: path.resolve(__dirname, "client/background-worker.ts"),
+      },
+      output: {
+        entryFileNames: (chunk) =>
+          chunk.name === "background" ? "background.js" : "assets/[name]-[hash].js",
+      },
     },
   },
   plugins: [react()],

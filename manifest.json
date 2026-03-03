@@ -5,7 +5,8 @@
   "description": "A secure browser extension for managing vault entries with encrypted credentials",
   "permissions": [
     "storage",
-    "clipboardWrite"
+    "clipboardWrite",
+    "activeTab"
   ],
   "action": {
     "default_popup": "popup.html",

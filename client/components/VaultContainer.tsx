@@ -11,10 +11,10 @@ import {
   VaultEntry,
   PasswordGenConfig,
 } from "@/components/VaultView";
-import { useC1Relay } from "@/hooks/useC1Relay";
+import { useRelay } from "@/contexts/RelayContext";
 import type { A1Row } from "@/lib/vault-types";
 
-type C1Relay = ReturnType<typeof useC1Relay>;
+type C1Relay = ReturnType<typeof useRelay>;
 
 interface VaultContainerProps {
   popupSize?: boolean;
@@ -41,7 +41,7 @@ function a1RowToVaultEntry(r: A1Row, index: number): VaultEntry {
 }
 
 function relayFormToViewForm(
-  form: ReturnType<typeof useC1Relay>["form"]
+  form: ReturnType<typeof useRelay>["form"]
 ): {
   group: string;
   url: string;
@@ -67,7 +67,7 @@ export function VaultContainer({
   containerClassName = "",
   onStorageChange,
 }: VaultContainerProps) {
-  const c1FromHook = useC1Relay();
+  const c1FromHook = useRelay();
   const c1 = c1Prop ?? c1FromHook;
 
   const stage: Stage = c1.paired

@@ -5,17 +5,20 @@ import { createRoot } from "react-dom/client";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { RelayProvider } from "@/contexts/RelayContext";
 import Index from "./pages/Index";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <Index />
-    </TooltipProvider>
+    <RelayProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <Index />
+      </TooltipProvider>
+    </RelayProvider>
   </QueryClientProvider>
 );
 
