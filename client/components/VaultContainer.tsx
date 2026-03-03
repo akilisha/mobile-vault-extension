@@ -14,8 +14,14 @@ import {
 import { useC1Relay } from "@/hooks/useC1Relay";
 import type { A1Row } from "@/lib/vault-types";
 
+type C1Relay = ReturnType<typeof useC1Relay>;
+
 interface VaultContainerProps {
   popupSize?: boolean;
+  /** When true, container fills remaining space in a tabbed layout instead of fixed height. */
+  embeddedInTabs?: boolean;
+  /** When provided (e.g. from Index), use this relay instance so connection state is shared. */
+  c1?: C1Relay;
   containerClassName?: string;
   onStorageChange?: (entries: VaultEntry[], stage: Stage) => void;
 }
@@ -56,10 +62,13 @@ function relayFormToViewForm(
 
 export function VaultContainer({
   popupSize = true,
+  embeddedInTabs = false,
+  c1: c1Prop,
   containerClassName = "",
   onStorageChange,
 }: VaultContainerProps) {
-  const c1 = useC1Relay();
+  const c1FromHook = useC1Relay();
+  const c1 = c1Prop ?? c1FromHook;
 
   const stage: Stage = c1.paired
     ? "connected"
@@ -233,6 +242,7 @@ export function VaultContainer({
       }}
       onRefresh={c1.refreshVault}
       popupSize={popupSize}
+      embeddedInTabs={embeddedInTabs}
       containerClassName={containerClassName}
     />
   );
